@@ -153,7 +153,7 @@ ui <- dashboardPage(
     fluidRow(
       column(
         width = 6,
-        box(title = "Diversity Space", plotOutput("plot1", height = "500px"), width = 12)
+        box(title = "Portfolio of communities", plotOutput("plot1", height = "500px"), width = 12)
       ),
       column(
         width = 6,
@@ -249,6 +249,7 @@ server <- function(input, output, session) {
     metrics$pd_max <- pd_max
     metrics$pd_ref <- round(pd_res * 100)
     
+    # p1------
     p1 <- ggplot() +
       geom_bin_2d(data = dd, aes(x = zpd, y = zfd), alpha = .5) +
       scale_fill_gradient(low = "white", high = "black") +
@@ -276,9 +277,14 @@ server <- function(input, output, session) {
                size = 6, color = colmaxFD, fontface = "bold") +
       annotate("text", x = -3.5, y = -3.5, label = "Low\nPD & FD", hjust = 0.5, vjust = 0,
                size = 6, color = "black", fontface = "bold") +
-      ggtitle(glue("Selected community"),
-              subtitle = glue("Recovery [vs. maximum potential]: FD = {fd_max}% | PD = {pd_max}%\nRecovery gap [vs. reference]: FD = {fd_gap}% | PD = {pd_gap}%"))
+      ggtitle(glue("FD = {metrics$fd_ref}% vs. reference | {metrics$fd_max}% vs. max\n",
+                   "PD = {metrics$pd_ref}% vs. reference | {metrics$pd_max}% vs. max")) +
+      theme(
+        axis.title = element_text(size = 20),
+        axis.text = element_text(size = 16)
+      )
     
+    # p2-----
     p2 <- function() {
       plot_phylogeny_grouped(tree = trees,
                              degraded_species = deg_sp,
@@ -305,25 +311,41 @@ server <- function(input, output, session) {
                  aes(y = max_height.y, x = wood_density.y),
                  color = "tomato", size = 5) +
       theme_classic() +
-      labs(y = "Maximum height (m)", x = "Wood density (g/cm3)")
+      labs(y = "Maximum height (m)", x = "Wood density (g/cm3)") +
+      theme(
+        axis.title = element_text(size = 20),
+        axis.text = element_text(size = 16)
+      )
     
+    # p4 ----------------------------------------------------------
     p4 <- ggplot(datlevel, aes(y = pd, x = type, fill = type)) +
       geom_col(alpha = 0.7, show.legend = FALSE) +
+      geom_text(aes(label = paste0(round(pd * 100), "%")), 
+                vjust = -0.5, size = 5) +
       scale_fill_manual(values = c("tomato", "darkgreen", "green1")) +
       scale_x_discrete(limits = c("reference", "degraded", "restored")) +
       geom_hline(yintercept = c(.75, .25, .5), lty = 2) +
       theme_classic() +
-      labs(y = "Phylogenetic diversity", x = "Community") +
-      ggtitle(glue("PD restored = {round(pd_res, 2) * 100}%"))
+      labs(y = "Phylogenetic diversity", x = "") +
+      theme(
+        axis.title = element_text(size = 20),
+        axis.text = element_text(size = 16)
+      )
     
+    # p5 ----------------------------------------------------------
     p5 <- ggplot(datlevel, aes(y = fd, x = type, fill = type)) +
       geom_col(alpha = 0.7, show.legend = FALSE) +
+      geom_text(aes(label = paste0(round(fd * 100), "%")), 
+                vjust = -0.5, size = 5) +
       scale_fill_manual(values = c("tomato", "darkgreen", "green1")) +
       scale_x_discrete(limits = c("reference", "degraded", "restored")) +
       geom_hline(yintercept = c(.75, .25, .5), lty = 2) +
       theme_classic() +
-      labs(y = "Functional diversity", x = "Community") +
-      ggtitle(glue("FD restored = {round(fd_res, 2) * 100}%"))
+      labs(y = "Functional diversity", x = "") +
+      theme(
+        axis.title = element_text(size = 20),
+        axis.text = element_text(size = 16)
+      )
     
     list(p1 = p1, p2 = p2, p3 = p3, p4 = p4, p5 = p5)
   }
