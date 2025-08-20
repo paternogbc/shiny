@@ -1,0 +1,59 @@
+ID_base,life_form,rank,family,working_name,tip_name,alien,habitat,dispersal_syndrome,max_height_m,max_height_m.y,sla_mm_mg,sla_mm_mg.y,wd_g_cm3,wd_g_cm3.y
+DMF0001,tree,species,Apocynaceae,Alstonia angustiloba,Alstonia_angustiloba,0,forest,anemochory-ballis-hydro,40,40,19.69063442,19.690634419999995,0.294909703,0.294909703
+DMF0064,liana,genus,Apocynaceae,Secamone,Secamone,0,NA,anemochory-ballis-hydro,5.5,5.5,NA,24.146946701105115,NA,0.3749580209813159
+DMF0039,treelet,species,Apocynaceae,Tabernaemontana pauciflora,Tabernaemontana_pauciflora,0,forest,zoochory,6,6,24.13754151,24.13754151,0.42,0.42
+KR0187,tree,species,Arecaceae,Elaeis guineensis,Elaeis_guineensis,1,open habitats,zoochory,20,19.999999999999996,15.81722338,15.817223380000001,NA,0.44822534778643075
+DMF0022,shrub,species,Asteraceae,Clibadium surinamense,Clibadium_surinamense,1,open habitats,zoochory,5,4.999999999999999,NA,19.888365113767513,NA,0.4466565268164821
+DMF0007,tree,species,Cannabaceae,Trema tomentosum,Trema_tomentosum,0,open habitats,zoochory,24,24.000000000000004,28.21518095,28.215180950000008,0.28571429,0.28571429
+DMF0025,tree,species,Combretaceae,Terminalia calamansanai,Terminalia_calamansanai,0,open habitats,zoochory,30,30.000000000000004,NA,14.425451785479462,0.468424,0.468424
+DMF0062,liana,species,Convolvulaceae,Camonea pilosa,Camonea_pilosa,0,open habitats,zoochory,7.2,7.2,NA,11.432929029850696,NA,0.4472145588421361
+DMF0058,liana,species,Convolvulaceae,Erycibe rheedei,Erycibe_rheedei,0,open habitats,zoochory,1.7,1.7,6.373842,6.373841999999999,0.53712297,0.53712297
+DMF0037,tree,species,Dilleniaceae,Dillenia excelsa,Dillenia_excelsa,0,forest,zoochory,40,40,10.21068191,10.210681909999998,0.51581253,0.51581253
+DMF0021,tree,species,Euphorbiaceae,Croton argyratus,Croton_argyratus,0,forest,anemochory-ballis-hydro,24,24.000000000000004,17.91187065,17.911870650000004,0.438984057,0.438984057
+DMF0020,tree,species,Euphorbiaceae,Macaranga bancana,Macaranga_bancana,0,open habitats,zoochory,23,23,15.57781632,15.577816319999998,0.31,0.31
+DMF0004,tree,species,Euphorbiaceae,Macaranga conifera,Macaranga_conifera,0,forest,zoochory,24,24.000000000000004,15.23987898,15.239878980000004,0.362698103,0.362698103
+DMF0019,tree,species,Euphorbiaceae,Macaranga gigantea,Macaranga_gigantea,0,open habitats,zoochory,30,30.000000000000004,12.78337571,12.78337571,0.290740741,0.290740741
+DMF0006,shrub,species,Euphorbiaceae,Macaranga trichocarpa,Macaranga_trichocarpa,0,open habitats,zoochory,5,4.999999999999999,23.95539097,23.95539097,0.403459455,0.403459455
+DMF0010,tree,species,Euphorbiaceae,Mallotus macrostachyus,Mallotus_macrostachyus,0,open habitats,zoochory,16,15.999999999999998,13.21042815,13.210428150000002,0.356023283,0.356023283
+DMF0009,tree,species,Euphorbiaceae,Mallotus paniculatus,Mallotus_paniculatus,0,open habitats,zoochory,15,15,14.03399095,14.03399095,0.35269678,0.35269678
+DMF0036,tree,species,Euphorbiaceae,Mallotus peltatus,Mallotus_peltatus,0,open habitats,zoochory,21,21,18.36398859,18.363988589999998,0.491622673,0.491622673
+DMF0040,tree,species,Fabaceae,Archidendron jiringa,Archidendron_jiringa,0,forest,zoochory,21,21,15.34343784,15.343437839999998,0.51674641,0.51674641
+DMF0063,liana,species,Fabaceae,Centrosema molle,Centrosema_molle,1,open habitats,zoochory,5.2,5.2,50.33334615,50.33334614999999,NA,0.1856221817006976
+DMF0056,liana,species,Fabaceae,Mucuna biplicata,Mucuna_biplicata,0,open habitats,anemochory-ballis-hydro,15.1,15.100000000000003,22.857125,22.857124999999996,0.124466043,0.124466043
+DMF0060,liana,species,Fabaceae,Phanera semibifida,Phanera_semibifida,0,open habitats,zoochory,6.2,6.200000000000001,20.31993712,20.319937119999995,0.462949407,0.462949407
+DMF0032,shrub,species,Fabaceae,Senna alata,Senna_alata,1,open habitats,anemochory-ballis-hydro,5,4.999999999999999,26.97274524,26.97274524,0.26040346,0.26040346
+DMF0041,tree,species,Hypericaceae,Cratoxylum formosum,Cratoxylum_formosum,0,forest,anemochory-ballis-hydro,35,34.99999999999999,22.531544,22.531544,0.724346182,0.724346182
+DMF0003,treelet,species,Lamiaceae,Clerodendrum disparifolium,Clerodendrum_disparifolium,0,forest,zoochory,14,13.999999999999996,27.72096875,27.720968749999994,0.256284435,0.256284435
+DMF0027,tree,species,Lamiaceae,Peronema canescens,Peronema_canescens,0,open habitats,anemochory-ballis-hydro,35,34.99999999999999,27.22115299,27.22115299,0.467521373,0.467521373
+DMF0014,tree,species,Lamiaceae,Vitex quinata,Vitex_quinata,0,forest,zoochory,30,30.000000000000004,18.91670497,18.916704969999998,0.350254827,0.35025482699999994
+DMF0024,tree,species,Lauraceae,Litsea umbellata,Litsea_umbellata,0,open habitats,zoochory,12,12,16.2856506,16.2856506,0.439353117,0.439353117
+DMF0012,tree,species,Malvaceae,Commersonia bartramia,Commersonia_bartramia,0,open habitats,zoochory,12,12,21.47999036,21.479990359999995,0.25632184,0.25632184
+DMF0011,tree,species,Malvaceae,Hibiscus macrophyllus,Hibiscus_macrophyllus,0,open habitats,anemochory-ballis-hydro,25,24.999999999999996,22.25948268,22.259482680000005,0.29568837,0.29568837000000003
+DMF0045,tree,species,Melastomataceae,Bellucia pentamera,Bellucia_pentamera,1,open habitats,zoochory,12,12,13.68778421,13.68778421,0.387562953,0.387562953
+DMF0002,shrub,species,Melastomataceae,Melastoma malabathricum,Melastoma_malabathricum,0,open habitats,zoochory,5,4.999999999999999,19.92818444,19.92818444,0.44,0.44
+DMF0026,tree,species,Meliaceae,Swietenia macrophylla,Swietenia_macrophylla,1,forest,anemochory-ballis-hydro,60,59.999999999999986,16.48142878,16.481428779999998,0.42050328,0.42050328
+DMF0017,treelet,species,Moraceae,Ficus aurata,Ficus_aurata,0,open habitats,zoochory,15,15,18.32312871,18.323128709999995,0.43670886,0.43670886
+DMF0035,tree,species,Moraceae,Ficus caulocarpa,Ficus_caulocarpa,0,forest,zoochory,35,34.99999999999999,16.28258864,16.28258864,0.313904555,0.313904555
+DMF0016,tree,species,Moraceae,Ficus glandulifera,Ficus_glandulifera,0,forest,zoochory,30,30.000000000000004,NA,17.307198220653436,0.405534662,0.405534662
+DMF0052,tree,species,Moraceae,Ficus padana,Ficus_padana,0,open habitats,zoochory,15,15,22.65356875,22.653568750000005,0.21863799,0.21863799000000003
+DMF0028,tree,species,Moraceae,Ficus variegata,Ficus_variegata,0,open habitats,zoochory,40,40,17.87392351,17.873923509999997,0.305790378,0.305790378
+DMF0051,tree,species,Moraceae,Ficus vrieseana,Ficus_vrieseana,0,open habitats,zoochory,15,15,23.48419838,23.48419838,0.405534662,0.405534662
+DMF0044,tree,species,Moraceae,Streblus elongatus,Streblus_elongatus,0,open habitats,zoochory,35,34.99999999999999,17.20603783,17.20603783,0.48816861,0.48816861
+DMF0065,treelet,species,Opiliaceae,Champereia manillana,Champereia_manillana,0,forest,zoochory,20,19.999999999999996,14.49245192,14.492451920000002,0.69,0.69
+DMF0054,tree,species,Pandaceae,Galearia filiformis,Galearia_filiformis,0,forest,zoochory,10,10.000000000000002,15.131348879999999,15.131348880000001,0.635,0.635
+DMF0031,treelet,species,Pentaphylacaceae,Eurya nitida,Eurya_nitida,0,open habitats,zoochory,8,7.999999999999998,13.93230693,13.932306930000001,0.6199095,0.6199095
+DMF0030,treelet,species,Phyllanthaceae,Breynia racemosa,Breynia_racemosa,0,open habitats,zoochory,9,9.000000000000002,20.27415946,20.274159460000003,0.450084147,0.450084147
+DMF0057,tree,species,Phyllanthaceae,Bridelia glauca,Bridelia_glauca,0,forest,zoochory,30,30.000000000000004,17.34498235,17.344982350000002,0.4332999,0.4332999
+DMF0023,tree,species,Phyllanthaceae,Glochidion borneense,Glochidion_borneense,0,forest,zoochory,18,17.999999999999996,16.79340178,16.79340178,0.45,0.45
+DMF0066,shrub,species,Poaceae,Gigantochloa scortechinii,Gigantochloa_scortechinii,0,open habitats,zoochory,21,21,21.98685584,21.986855840000004,NA,0.415447144150633
+DMF0061,liana,species,Resedaceae,Stixis scortechinii,Stixis_scortechinii,0,open habitats,zoochory,4.8,4.8,NA,22.578836384190627,NA,0.4029186984764247
+DMF0015,shrub,species,Rubiaceae,Canthium horridum,Canthium_horridum,0,open habitats,zoochory,6,6,25.50625,25.506249999999994,0.636677778,0.636677778
+DMF0038,tree,species,Rubiaceae,Neolamarckia cadamba,Neolamarckia_cadamba,0,open habitats,zoochory,45,44.99999999999999,10.859032,10.859032000000001,0.4239,0.4239
+DMF0029,tree,species,Rubiaceae,Neonauclea calycina,Neonauclea_calycina,0,open habitats,zoochory,25,24.999999999999996,7.366683721,7.366683721,0.42392344,0.42392344
+DMF0053,liana,species,Rubiaceae,Uncaria cordata,Uncaria_cordata,0,open habitats,anemochory-ballis-hydro,2.9,2.9,14.0828081,14.0828081,0.386430833,0.386430833
+DMF0055,tree,species,Rubiaceae,Urophyllum peltistigma,Urophyllum_peltistigma,0,forest,zoochory,2,2,22.6911317,22.691131699999996,0.48,0.48
+DMF0047,tree,species,Rutaceae,Clausena excavata,Clausena_excavata,0,open habitats,zoochory,15,15,19.07739521,19.077395210000002,0.385465317,0.385465317
+DMF0042,treelet,species,Salicaceae,Homalium caryophyllaceum,Homalium_caryophyllaceum,0,forest,zoochory,15,15,8.407704142,8.407704141999998,0.64076685,0.64076685
+DMF0033,tree,genus,Sapindaceae,Nephelium,Nephelium,0,forest,zoochory,27.5,27.500000000000004,10.4604847,10.460484700000002,0.7782,0.7782
+DMF0008,shrub,species,Solanaceae,Solanum jamaicense,Solanum_jamaicense,1,open habitats,zoochory,2,2,28.42902164,28.429021639999995,0.330496927,0.330496927
+DMF0005,treelet,species,Vitaceae,Leea indica,Leea_indica,0,open habitats,zoochory,16,15.999999999999998,12.92151097,12.921510969999996,0.57,0.57

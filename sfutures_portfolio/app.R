@@ -1,44 +1,334 @@
+# Packages-----
 library(shiny)
 library(shinydashboard)
 library(ggplot2)
+library(sensiPhy)
+library(dplyr)
+library(magrittr)
+library(stringr)
+library(glue)
+library(fundiversity)
+library(picante)
+library(ggtree)
+library(ggalt)
+library(patchwork)
+library(ape)   # read.tree / drop.tip
 
-# Sample data for plots
-data <- mtcars
+# Functions needed --------------------------------------------------------
+remove_species_by_traits <- function(tree, traits, trait1, weight1, trait2 = NULL, weight2 = NULL, percentage_remove, uncertainty = 0) {
+  # Validate input
+  if (!trait1 %in% names(traits)) {
+    stop("The specified trait1 is not in the traits table.")
+  }
+  if (!is.null(trait2) && !trait2 %in% names(traits)) {
+    stop("The specified trait2 is not in the traits table.")
+  }
+  
+  # Match trait data to the species in the tree using row names
+  tree_species <- tree$tip.label
+  matched_traits <- data.frame(species = rownames(traits), traits)
+  matched_traits <- matched_traits[match(tree_species, matched_traits$species), ]
+  
+  if (any(is.na(matched_traits))) {
+    stop("Not all species in the tree have corresponding traits.")
+  }
+  
+  # Normalize traits (0 to 1 scale)
+  normalize <- function(x) {
+    (x - min(x, na.rm = TRUE)) / (max(x, na.rm = TRUE) - min(x, na.rm = TRUE))
+  }
+  
+  # Calculate normalized scores for traits
+  matched_traits$trait1_normalized <- normalize(matched_traits[[trait1]]) * weight1
+  if (!is.null(trait2) && !is.null(weight2)) {
+    matched_traits$trait2_normalized <- normalize(matched_traits[[trait2]]) * weight2
+    matched_traits$score <- matched_traits$trait1_normalized + matched_traits$trait2_normalized
+  } else {
+    matched_traits$score <- matched_traits$trait1_normalized
+  }
+  
+  # Add random noise to the score for uncertainty
+  matched_traits$score <- matched_traits$score + rnorm(nrow(matched_traits), mean = 0, sd = uncertainty)
+  
+  # Rank species by score and identify the ones to be removed
+  num_remove <- ceiling(nrow(matched_traits) * percentage_remove / 100)
+  species_to_remove <- head(matched_traits[order(-matched_traits$score), "species"], num_remove)
+  
+  # Remove species from the tree
+  new_tree <- drop.tip(tree, species_to_remove)
+  
+  return(list("new_tree" = new_tree, "removed_species" = species_to_remove))
+}
 
+plot_phylogeny_grouped <- function(tree, degraded_species, added_species,
+                                   col_degraded = "red", col_added = "green",
+                                   col_background = gray(0.85),
+                                   layout = "circular", size_tip = 3) {
+  group <- list("added" = added_species, "degraded" = degraded_species)
+  grouped_tree <- groupOTU(tree, group)
+  ggtree(grouped_tree, aes(color = group), layout = layout, show.legend = FALSE) +
+    geom_tippoint(size = size_tip, alpha = 0.95, show.legend = FALSE) +
+    scale_color_manual(values = c("degraded" = col_degraded, "added" = col_added, "background" = col_background),
+                       na.value = col_background)
+}
+
+# Load data ---------------------------------------------------------------
+trees   <- read.tree("phylogenetic_tree_allsp2020_S3.tre")
+simucom <- read.csv("simulated_communities_N100000.csv")
+traits  <- read.csv("functional_traits_species_imputation.csv") %>%
+  filter(alien == 0) %>%
+  mutate(
+    wood_density.y = wd_g_cm3.y,
+    max_height.y = max_height_m.y,
+    sla.y = sla_mm_mg.y
+  )
+rownames(traits) <- traits$tip_name
+
+# Process data ------------------------------------------------------------
+colmaxFD   = "#a6d854"
+colmaxPD   = "#8da0cb"
+colmaxDIV  = '#e78ac3'
+
+Nsimu <- nrow(simucom)
+dd <- simucom[sample(seq_len(nrow(simucom)), Nsimu), ]
+topfd <- quantile(simucom$zfd, probs = 0.95)
+toppd <- quantile(simucom$zpd, probs = 0.95)
+max_pd <- max(simucom$pd)
+max_fd <- max(simucom$fd)
+
+comp <- match_dataphy(formula = sla.y ~ wood_density.y + max_height.y, data = traits, phy = trees)
+
+totsp <- 51
+deg_prob = 0.15
+
+# Remove species
+removed_species <- remove_species_by_traits(tree = comp$phy,
+                                            traits = comp$data %>% dplyr::select(wood_density.y, sla.y, max_height.y),
+                                            trait1 = "max_height.y",
+                                            trait2 = "wood_density.y",
+                                            weight1 = 0.5,
+                                            weight2 = 0.5,
+                                            percentage_remove = 100 * (1 - deg_prob))
+lost_sp <- removed_species$removed_species
+all_sp <- comp$phy$tip.label
+deg_sp <- setdiff(all_sp, lost_sp)
+
+# UI ----------------------------------------------------------------------
 ui <- dashboardPage(
-  dashboardHeader(title = "Simple Dashboard"),
-  dashboardSidebar(),
+  dashboardHeader(title = "Community Restoration Dashboard"),
+  dashboardSidebar(
+    sidebarMenu(
+      menuItem("Dashboard", tabName = "dashboard", icon = icon("dashboard")),
+      selectInput("type", "Select restoration approach:",
+                  choices = c("Random" = "rand",
+                              "Maximize PD" = "pd", 
+                              "Maximize FD" = "fd", 
+                              "Portfolio (high PD & FD)" = "both",
+                              "Trade-off [high FD | low PD]" = "tpd",
+                              "Trade-off [high PD | low FD]" = "tfd"),
+                  selected = "rand"),
+      actionButton("generate_btn", "Select another community", icon = icon("refresh")),
+      br(), br(),
+      p("This interactive app simulates community restoration scenarios")
+    )
+  ),
   dashboardBody(
     fluidRow(
-      box(plotOutput("plot1"), width = 6),
-      box(plotOutput("plot2"), width = 6)
+      valueBoxOutput("vb_fd_max", width = 3),
+      valueBoxOutput("vb_fd_ref", width = 3),
+      valueBoxOutput("vb_pd_max", width = 3),
+      valueBoxOutput("vb_pd_ref", width = 3)
     ),
     fluidRow(
-      box(actionButton("btn", "Click Me"), width = 12)
+      column(
+        width = 6,
+        box(title = "Diversity Space", plotOutput("plot1", height = "500px"), width = 12)
+      ),
+  # dashboardBody(
+  #   fluidRow(
+  #     column(
+  #       width = 6,
+  #       box(title = "Diversity Space", plotOutput("plot1", height = "500px"), width = 12)
+  #     ),
+      column(
+        width = 6,
+        box(
+          title = "Phylogenetic Tree & Trait Space",
+          width = 12,
+          splitLayout(
+            cellWidths = c("50%", "50%"),
+            plotOutput("plot2", height = "500px"),
+            plotOutput("plot3", height = "500px")
+          )
+        )
+      )
+    ),
+    fluidRow(
+      column(
+        width = 6,
+        fluidRow(
+          column(6, box(title = "Phylogenetic Diversity", plotOutput("plot4"), width = 12)),
+          column(6, box(title = "Functional Diversity", plotOutput("plot5"), width = 12))
+        )
+      ),
+      column(width = 6) # spacer to keep PD/FD directly below p1
     )
   )
 )
 
+# Server ------------------------------------------------------------------
 server <- function(input, output, session) {
   
-  output$plot1 <- renderPlot({
-    ggplot(data, aes(x = wt, y = mpg)) +
-      geom_point() +
-      ggtitle("Plot 1: Weight vs MPG")
+  # Create a reactiveValues list to store plots
+  plots <- reactiveValues()
+  
+  generatePlots <-  function()({
+    # Select communities ------------------------------------------------------
+    crop_pd   <- simucom %>% filter(pd == max_pd)
+    crop_fd   <- simucom %>% filter(fd == max_fd)
+    crop_both <- simucom %>% filter(zfd > topfd & zpd > toppd)
+    crop_tfd  <- simucom %>% filter(zfd < -1 & zpd > toppd)
+    crop_tpd  <- simucom %>% filter(zfd > topfd & zpd < -1)
+    
+    df <- switch(input$type,
+                 rand = simucom,
+                 pd   = crop_pd,
+                 fd   = crop_fd,
+                 tpd  = crop_tpd,
+                 tfd  = crop_tfd,
+                 both = crop_both)
+    
+    restored_simu <- sample.int(nrow(df), 1)
+    restored_data <- df[restored_simu, , drop = FALSE]
+    restored_sp <- str_split(df[restored_simu, ]$composition, pattern = "-")[[1]]
+    restored_list <- c(deg_sp, restored_sp)
+    
+    # trait data for selected community
+    trait_community <- traits %>% filter(tip_name %in% restored_list)
+    
+    # diversity calculations ---------------------------------------------------
+    deg_data <- comp$data %>% filter(tip_name %in% deg_sp) %>% dplyr::select(max_height.y, wood_density.y)
+    res_data <- comp$data %>% filter(tip_name %in% restored_list) %>% dplyr::select(max_height.y, wood_density.y)
+    
+    fd_ref <- as.numeric(fd_fric(comp$data[, c("max_height.y", "wood_density.y")])[2])
+    fd_deg <- as.numeric(fd_fric(deg_data)[2]) / fd_ref
+    fd_res <- as.numeric(fd_fric(res_data)[2]) / fd_ref
+    fd_ref <- fd_ref / fd_ref
+    
+    all_presence = (all_sp %in% all_sp) * 1
+    res_presence = (all_sp %in% restored_list) * 1
+    deg_presence = (all_sp %in% deg_sp) * 1
+    
+    species_presence <- t(data.frame(all_presence, res_presence, deg_presence))
+    colnames(species_presence) <- all_sp
+    
+    pd_comm <- pd(samp = species_presence, tree = comp$phy)
+    pd_ref <- pd_comm$PD[1]
+    pd_deg <- pd_comm$PD[3] / pd_ref
+    pd_res <- pd_comm$PD[2] / pd_ref
+    pd_ref <- pd_ref / pd_ref
+    
+    datlevel <- data.frame(
+      pd = c(pd_ref, pd_deg, pd_res),
+      fd = c(fd_ref, fd_deg, fd_res),
+      sr = c(51, 7, 15),
+      type = c("reference", "degraded", "restored")
+    )
+    
+    # restored levels %
+    fd_perc <- round(fd_res, 2) * 100
+    pd_perc <- round(pd_res, 2) * 100
+    pd_gap  <- pd_perc - 100
+    fd_gap  <- fd_perc - 100
+    
+    # potential from maximum
+    pd_max <- round((restored_data$pd / max_pd) * 100)
+    fd_max <- round((restored_data$fd / max_fd) * 100)
+    
+    ## Make plots --------------------------------------------------------------
+    p1 <- ggplot() +
+      geom_bin_2d(data = dd, aes(x = zpd, y = zfd), alpha = .5) +
+      scale_fill_gradient(low = "white", high = "black") +
+      geom_point(data = dd %>% filter(zpd >= toppd & zfd >= topfd), aes(x = zpd, y = zfd), alpha = .4, size = 1, color = colmaxDIV) +
+      geom_point(data = restored_data, aes(x = zpd, y = zfd), color = "green1", size = 7) +
+      geom_hline(yintercept = topfd) +
+      geom_vline(xintercept = toppd) +
+      annotate("segment",
+               x = toppd, y = topfd,
+               xend = restored_data$zpd, yend = restored_data$zfd,
+               arrow = arrow(length = grid::unit(0.3, "cm")),
+               colour = "darkgreen", size = 1.5) +
+      scale_y_continuous(breaks = seq(-4, 4, 1), limits = c(-4, 4)) +
+      scale_x_continuous(breaks = seq(-4, 4, 1), limits = c(-4, 4)) +
+      theme_classic(base_size = 14) +
+      labs(y = "Standardized Functional diversity", 
+           x = "Standardized Phylogenetic diversity",
+           fill = "") +
+      annotate("text", x = 3, y = 3, label = "Portfolio\nHigh PD&FD", hjust = Inf, vjust = Inf, size = 6, color = colmaxDIV, fontface = "bold") +
+      annotate("text", x = 3, y = -3, label = "Top 5%\nPD", hjust = Inf, vjust = 0, size = 6, color = colmaxPD, fontface = "bold") +
+      annotate("text", x = -3, y = 3, label = "Top 5%\nFD", hjust = 0.5, vjust = Inf, size = 6, color = colmaxFD, fontface = "bold") +
+      annotate("text", x = -3.5, y = -3.5, label = "Low\nPD & FD", hjust = 0.5, vjust = 0, size = 6, color = "black", fontface = "bold") +
+      ggtitle(glue("Selected community"),
+              subtitle = glue("Recovery [vs. maximum potential]: FD = {fd_max}% | PD = {pd_max}%\nRecovery gap [vs. reference]: FD = {fd_gap}% | PD = {pd_gap}%"))
+    
+    p2 <- plot_phylogeny_grouped(tree = trees, degraded_species = deg_sp, added_species = restored_sp,
+                                 col_degraded = "tomato", col_added = "green1")
+    
+    p3 <- ggplot() +
+      geom_point(data = comp$data, aes(y = max_height.y, x = wood_density.y)) +
+      geom_encircle(data = comp$data, aes(y = max_height.y, x = wood_density.y), size = 2, expand = 0, s_shape = 1) +
+      geom_encircle(data = trait_community, aes(y = max_height.y, x = wood_density.y), alpha = 0.2, fill = "green1", expand = 0, s_shape = 1) +
+      geom_encircle(data = trait_community %>% filter(tip_name %in% deg_sp), aes(y = max_height.y, x = wood_density.y), alpha = 0.3, fill = "tomato", expand = 0, s_shape = 1) +
+      geom_point(data = trait_community, aes(y = max_height.y, x = wood_density.y), color = "green3", size = 5) +
+      geom_point(data = trait_community %>% filter(tip_name %in% deg_sp), aes(y = max_height.y, x = wood_density.y), color = "tomato", size = 5) +
+      theme_classic() +
+      labs(y = "Maximum height (m)", x = "Wood density (g/cm3)")
+    
+    p4 <- ggplot(datlevel, aes(y = pd, x = type, fill = type)) +
+      geom_col(alpha = 0.7, show.legend = FALSE) +
+      scale_fill_manual(values = c("tomato", "darkgreen", "green1")) +
+      scale_x_discrete(limits = c("reference", "degraded", "restored")) +
+      geom_hline(yintercept = c(.75, .25, .5), lty = 2) +
+      theme_classic() +
+      labs(y = "Phylogenetic diversity", x = "Community") +
+      ggtitle(glue("PD restored = {round(pd_res, 2) * 100}%"))
+    p5 <- ggplot(datlevel, aes(y = fd, x = type, fill = type)) +
+      geom_col(alpha = 0.7, show.legend = FALSE) +
+      scale_fill_manual(values = c("tomato", "darkgreen", "green1")) +
+      scale_x_discrete(limits = c("reference", "degraded", "restored")) +
+      geom_hline(yintercept = c(.75, .25, .5), lty = 2) +
+      theme_classic() +
+      labs(y = "Functional diversity", x = "Community") +
+      ggtitle(glue("FD restored = {round(fd_res, 2) * 100}%"))
+    list(p1 = p1, p2 = p2, p3 = p3, p4 = p4, p5 = p5)
   })
   
-  output$plot2 <- renderPlot({
-    ggplot(data, aes(x = factor(cyl), fill = factor(cyl))) +
-      geom_bar() +
-      ggtitle("Plot 2: Cylinder Count")
+  # Re-run on button click OR when dropdown changes approach
+  observeEvent(list(input$generate_btn, input$type), {
+    newPlots <- generatePlots()
+    plots$p1 <- newPlots$p1
+    plots$p2 <- newPlots$p2
+    plots$p3 <- newPlots$p3
+    plots$p4 <- newPlots$p4
+    plots$p5 <- newPlots$p5
   })
   
-  observeEvent(input$btn, {
-    showModal(modalDialog(
-      title = "Button Clicked",
-      "You clicked the button!"
-    ))
+  # Initialize with first plot
+  observe({
+    req(is.null(plots$p1))
+    newPlots <- generatePlots()
+    plots$p1 <- newPlots$p1
+    plots$p2 <- newPlots$p2
+    plots$p3 <- newPlots$p3
+    plots$p4 <- newPlots$p4
+    plots$p5 <- newPlots$p5
   })
+  
+  output$plot1 <- renderPlot({ plots$p1 })
+  output$plot2 <- renderPlot({ plots$p2 })
+  output$plot3 <- renderPlot({ plots$p3 })
+  output$plot4 <- renderPlot({ plots$p4 })
+  output$plot5 <- renderPlot({ plots$p5 })
 }
 
-shinyApp(ui, server)
+shinyApp(ui = ui, server = server)
