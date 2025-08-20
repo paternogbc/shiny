@@ -9,36 +9,23 @@ library(stringr)
 library(glue)
 library(fundiversity)
 library(picante)
-library(ggtree)
-library(ggalt)
-library(patchwork)
-library(ape)   # read.tree / drop.tip
+library(ggalt)     # for geom_encircle
+library(ape)       # read.tree / drop.tip, base phylogeny plotting
 
 # Functions needed --------------------------------------------------------
-remove_species_by_traits <- function(tree, traits, trait1, weight1, trait2 = NULL, weight2 = NULL, percentage_remove, uncertainty = 0) {
-  # Validate input
-  if (!trait1 %in% names(traits)) {
-    stop("The specified trait1 is not in the traits table.")
-  }
-  if (!is.null(trait2) && !trait2 %in% names(traits)) {
-    stop("The specified trait2 is not in the traits table.")
-  }
+remove_species_by_traits <- function(tree, traits, trait1, weight1, trait2 = NULL, weight2 = NULL,
+                                     percentage_remove, uncertainty = 0) {
+  if (!trait1 %in% names(traits)) stop("The specified trait1 is not in the traits table.")
+  if (!is.null(trait2) && !trait2 %in% names(traits)) stop("The specified trait2 is not in the traits table.")
   
-  # Match trait data to the species in the tree using row names
   tree_species <- tree$tip.label
   matched_traits <- data.frame(species = rownames(traits), traits)
   matched_traits <- matched_traits[match(tree_species, matched_traits$species), ]
   
-  if (any(is.na(matched_traits))) {
-    stop("Not all species in the tree have corresponding traits.")
-  }
+  if (any(is.na(matched_traits))) stop("Not all species in the tree have corresponding traits.")
   
-  # Normalize traits (0 to 1 scale)
-  normalize <- function(x) {
-    (x - min(x, na.rm = TRUE)) / (max(x, na.rm = TRUE) - min(x, na.rm = TRUE))
-  }
+  normalize <- function(x) (x - min(x, na.rm = TRUE)) / (max(x, na.rm = TRUE) - min(x, na.rm = TRUE))
   
-  # Calculate normalized scores for traits
   matched_traits$trait1_normalized <- normalize(matched_traits[[trait1]]) * weight1
   if (!is.null(trait2) && !is.null(weight2)) {
     matched_traits$trait2_normalized <- normalize(matched_traits[[trait2]]) * weight2
@@ -47,29 +34,54 @@ remove_species_by_traits <- function(tree, traits, trait1, weight1, trait2 = NUL
     matched_traits$score <- matched_traits$trait1_normalized
   }
   
-  # Add random noise to the score for uncertainty
   matched_traits$score <- matched_traits$score + rnorm(nrow(matched_traits), mean = 0, sd = uncertainty)
   
-  # Rank species by score and identify the ones to be removed
   num_remove <- ceiling(nrow(matched_traits) * percentage_remove / 100)
   species_to_remove <- head(matched_traits[order(-matched_traits$score), "species"], num_remove)
   
-  # Remove species from the tree
   new_tree <- drop.tip(tree, species_to_remove)
-  
   return(list("new_tree" = new_tree, "removed_species" = species_to_remove))
 }
 
-plot_phylogeny_grouped <- function(tree, degraded_species, added_species,
-                                   col_degraded = "red", col_added = "green",
+plot_phylogeny_grouped <- function(tree,
+                                   degraded_species,
+                                   added_species,
+                                   col_degraded = "red",
+                                   col_added = "green",
                                    col_background = gray(0.85),
-                                   layout = "circular", size_tip = 3) {
-  group <- list("added" = added_species, "degraded" = degraded_species)
-  grouped_tree <- groupOTU(tree, group)
-  ggtree(grouped_tree, aes(color = group), layout = layout, show.legend = FALSE) +
-    geom_tippoint(size = size_tip, alpha = 0.95, show.legend = FALSE) +
-    scale_color_manual(values = c("degraded" = col_degraded, "added" = col_added, "background" = col_background),
-                       na.value = col_background)
+                                   layout = "circular",
+                                   size_tip = 1) {
+  edge_colors <- rep("grey50", nrow(tree$edge))
+  
+  get_path_edges <- function(tree, tip) {
+    tip_idx <- which(tree$tip.label == tip)
+    node <- tip_idx
+    edges <- integer()
+    while (node != (Ntip(tree) + 1)) {
+      parent_edge <- which(tree$edge[, 2] == node)
+      if (length(parent_edge) == 0) break
+      edges <- c(edges, parent_edge)
+      node <- tree$edge[parent_edge, 1]
+    }
+    edges
+  }
+  
+  for (sp in degraded_species) {
+    edge_colors[get_path_edges(tree, sp)] <- col_degraded
+  }
+  for (sp in added_species) {
+    edge_colors[get_path_edges(tree, sp)] <- col_added
+  }
+  
+  type <- if (layout == "circular") "fan" else "phylogram"
+  
+  plot.phylo(tree, type = type, show.tip.label = FALSE, edge.color = edge_colors)
+  
+  tip_colors <- rep(col_background, length(tree$tip.label))
+  tip_colors[tree$tip.label %in% degraded_species] <- col_degraded
+  tip_colors[tree$tip.label %in% added_species]    <- col_added
+  
+  tiplabels(pch = 19, col = tip_colors, cex = size_tip)
 }
 
 # Load data ---------------------------------------------------------------
@@ -101,7 +113,6 @@ comp <- match_dataphy(formula = sla.y ~ wood_density.y + max_height.y, data = tr
 totsp <- 51
 deg_prob = 0.15
 
-# Remove species
 removed_species <- remove_species_by_traits(tree = comp$phy,
                                             traits = comp$data %>% dplyr::select(wood_density.y, sla.y, max_height.y),
                                             trait1 = "max_height.y",
@@ -144,12 +155,6 @@ ui <- dashboardPage(
         width = 6,
         box(title = "Diversity Space", plotOutput("plot1", height = "500px"), width = 12)
       ),
-  # dashboardBody(
-  #   fluidRow(
-  #     column(
-  #       width = 6,
-  #       box(title = "Diversity Space", plotOutput("plot1", height = "500px"), width = 12)
-  #     ),
       column(
         width = 6,
         box(
@@ -171,19 +176,17 @@ ui <- dashboardPage(
           column(6, box(title = "Functional Diversity", plotOutput("plot5"), width = 12))
         )
       ),
-      column(width = 6) # spacer to keep PD/FD directly below p1
+      column(width = 6)
     )
   )
 )
 
 # Server ------------------------------------------------------------------
 server <- function(input, output, session) {
-  
-  # Create a reactiveValues list to store plots
   plots <- reactiveValues()
+  metrics <- reactiveValues(fd_max = NA, fd_ref = NA, pd_max = NA, pd_ref = NA)
   
-  generatePlots <-  function()({
-    # Select communities ------------------------------------------------------
+  generatePlots <- function() {
     crop_pd   <- simucom %>% filter(pd == max_pd)
     crop_fd   <- simucom %>% filter(fd == max_fd)
     crop_both <- simucom %>% filter(zfd > topfd & zpd > toppd)
@@ -203,10 +206,8 @@ server <- function(input, output, session) {
     restored_sp <- str_split(df[restored_simu, ]$composition, pattern = "-")[[1]]
     restored_list <- c(deg_sp, restored_sp)
     
-    # trait data for selected community
     trait_community <- traits %>% filter(tip_name %in% restored_list)
     
-    # diversity calculations ---------------------------------------------------
     deg_data <- comp$data %>% filter(tip_name %in% deg_sp) %>% dplyr::select(max_height.y, wood_density.y)
     res_data <- comp$data %>% filter(tip_name %in% restored_list) %>% dplyr::select(max_height.y, wood_density.y)
     
@@ -235,21 +236,24 @@ server <- function(input, output, session) {
       type = c("reference", "degraded", "restored")
     )
     
-    # restored levels %
     fd_perc <- round(fd_res, 2) * 100
     pd_perc <- round(pd_res, 2) * 100
     pd_gap  <- pd_perc - 100
     fd_gap  <- fd_perc - 100
     
-    # potential from maximum
     pd_max <- round((restored_data$pd / max_pd) * 100)
     fd_max <- round((restored_data$fd / max_fd) * 100)
     
-    ## Make plots --------------------------------------------------------------
+    metrics$fd_max <- fd_max
+    metrics$fd_ref <- round(fd_res * 100)
+    metrics$pd_max <- pd_max
+    metrics$pd_ref <- round(pd_res * 100)
+    
     p1 <- ggplot() +
       geom_bin_2d(data = dd, aes(x = zpd, y = zfd), alpha = .5) +
       scale_fill_gradient(low = "white", high = "black") +
-      geom_point(data = dd %>% filter(zpd >= toppd & zfd >= topfd), aes(x = zpd, y = zfd), alpha = .4, size = 1, color = colmaxDIV) +
+      geom_point(data = dd %>% filter(zpd >= toppd & zfd >= topfd), aes(x = zpd, y = zfd),
+                 alpha = .4, size = 1, color = colmaxDIV) +
       geom_point(data = restored_data, aes(x = zpd, y = zfd), color = "green1", size = 7) +
       geom_hline(yintercept = topfd) +
       geom_vline(xintercept = toppd) +
@@ -264,23 +268,42 @@ server <- function(input, output, session) {
       labs(y = "Standardized Functional diversity", 
            x = "Standardized Phylogenetic diversity",
            fill = "") +
-      annotate("text", x = 3, y = 3, label = "Portfolio\nHigh PD&FD", hjust = Inf, vjust = Inf, size = 6, color = colmaxDIV, fontface = "bold") +
-      annotate("text", x = 3, y = -3, label = "Top 5%\nPD", hjust = Inf, vjust = 0, size = 6, color = colmaxPD, fontface = "bold") +
-      annotate("text", x = -3, y = 3, label = "Top 5%\nFD", hjust = 0.5, vjust = Inf, size = 6, color = colmaxFD, fontface = "bold") +
-      annotate("text", x = -3.5, y = -3.5, label = "Low\nPD & FD", hjust = 0.5, vjust = 0, size = 6, color = "black", fontface = "bold") +
+      annotate("text", x = 3, y = 3, label = "Portfolio\nHigh PD&FD", hjust = Inf, vjust = Inf,
+               size = 6, color = colmaxDIV, fontface = "bold") +
+      annotate("text", x = 3, y = -3, label = "Top 5%\nPD", hjust = Inf, vjust = 0,
+               size = 6, color = colmaxPD, fontface = "bold") +
+      annotate("text", x = -3, y = 3, label = "Top 5%\nFD", hjust = 0.5, vjust = Inf,
+               size = 6, color = colmaxFD, fontface = "bold") +
+      annotate("text", x = -3.5, y = -3.5, label = "Low\nPD & FD", hjust = 0.5, vjust = 0,
+               size = 6, color = "black", fontface = "bold") +
       ggtitle(glue("Selected community"),
               subtitle = glue("Recovery [vs. maximum potential]: FD = {fd_max}% | PD = {pd_max}%\nRecovery gap [vs. reference]: FD = {fd_gap}% | PD = {pd_gap}%"))
     
-    p2 <- plot_phylogeny_grouped(tree = trees, degraded_species = deg_sp, added_species = restored_sp,
-                                 col_degraded = "tomato", col_added = "green1")
+    p2 <- function() {
+      plot_phylogeny_grouped(tree = trees,
+                             degraded_species = deg_sp,
+                             added_species = restored_sp,
+                             col_degraded = "tomato",
+                             col_added = "green3",
+                             col_background = gray(0.85),
+                             layout = "circular",
+                             size_tip = 1)
+    }
     
     p3 <- ggplot() +
       geom_point(data = comp$data, aes(y = max_height.y, x = wood_density.y)) +
-      geom_encircle(data = comp$data, aes(y = max_height.y, x = wood_density.y), size = 2, expand = 0, s_shape = 1) +
-      geom_encircle(data = trait_community, aes(y = max_height.y, x = wood_density.y), alpha = 0.2, fill = "green1", expand = 0, s_shape = 1) +
-      geom_encircle(data = trait_community %>% filter(tip_name %in% deg_sp), aes(y = max_height.y, x = wood_density.y), alpha = 0.3, fill = "tomato", expand = 0, s_shape = 1) +
-      geom_point(data = trait_community, aes(y = max_height.y, x = wood_density.y), color = "green3", size = 5) +
-      geom_point(data = trait_community %>% filter(tip_name %in% deg_sp), aes(y = max_height.y, x = wood_density.y), color = "tomato", size = 5) +
+      geom_encircle(data = comp$data, aes(y = max_height.y, x = wood_density.y),
+                    size = 2, expand = 0, s_shape = 1) +
+      geom_encircle(data = trait_community, aes(y = max_height.y, x = wood_density.y),
+                    alpha = 0.2, fill = "green1", expand = 0, s_shape = 1) +
+      geom_encircle(data = trait_community %>% filter(tip_name %in% deg_sp),
+                    aes(y = max_height.y, x = wood_density.y),
+                    alpha = 0.3, fill = "tomato", expand = 0, s_shape = 1) +
+      geom_point(data = trait_community, aes(y = max_height.y, x = wood_density.y),
+                 color = "green3", size = 5) +
+      geom_point(data = trait_community %>% filter(tip_name %in% deg_sp),
+                 aes(y = max_height.y, x = wood_density.y),
+                 color = "tomato", size = 5) +
       theme_classic() +
       labs(y = "Maximum height (m)", x = "Wood density (g/cm3)")
     
@@ -292,6 +315,7 @@ server <- function(input, output, session) {
       theme_classic() +
       labs(y = "Phylogenetic diversity", x = "Community") +
       ggtitle(glue("PD restored = {round(pd_res, 2) * 100}%"))
+    
     p5 <- ggplot(datlevel, aes(y = fd, x = type, fill = type)) +
       geom_col(alpha = 0.7, show.legend = FALSE) +
       scale_fill_manual(values = c("tomato", "darkgreen", "green1")) +
@@ -300,10 +324,10 @@ server <- function(input, output, session) {
       theme_classic() +
       labs(y = "Functional diversity", x = "Community") +
       ggtitle(glue("FD restored = {round(fd_res, 2) * 100}%"))
+    
     list(p1 = p1, p2 = p2, p3 = p3, p4 = p4, p5 = p5)
-  })
+  }
   
-  # Re-run on button click OR when dropdown changes approach
   observeEvent(list(input$generate_btn, input$type), {
     newPlots <- generatePlots()
     plots$p1 <- newPlots$p1
@@ -313,7 +337,6 @@ server <- function(input, output, session) {
     plots$p5 <- newPlots$p5
   })
   
-  # Initialize with first plot
   observe({
     req(is.null(plots$p1))
     newPlots <- generatePlots()
@@ -325,10 +348,24 @@ server <- function(input, output, session) {
   })
   
   output$plot1 <- renderPlot({ plots$p1 })
-  output$plot2 <- renderPlot({ plots$p2 })
+  output$plot2 <- renderPlot({ plots$p2() })
   output$plot3 <- renderPlot({ plots$p3 })
   output$plot4 <- renderPlot({ plots$p4 })
   output$plot5 <- renderPlot({ plots$p5 })
+  
+  # Floating value boxes ---------------------------------------------------
+  output$vb_fd_max <- renderValueBox({
+    valueBox(paste0(metrics$fd_max, "%"), "FD vs. max potential", icon = icon("chart-line"), color = "light-blue")
+  })
+  output$vb_fd_ref <- renderValueBox({
+    valueBox(paste0(metrics$fd_ref, "%"), "FD vs. reference", icon = icon("chart-bar"), color = "light-blue")
+  })
+  output$vb_pd_max <- renderValueBox({
+    valueBox(paste0(metrics$pd_max, "%"), "PD vs. max potential", icon = icon("chart-line"), color = "purple")
+  })
+  output$vb_pd_ref <- renderValueBox({
+    valueBox(paste0(metrics$pd_ref, "%"), "PD vs. reference", icon = icon("chart-bar"), color = "purple")
+  })
 }
 
 shinyApp(ui = ui, server = server)
