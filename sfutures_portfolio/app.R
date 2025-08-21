@@ -142,7 +142,7 @@ ui <- dashboardPage(
     div(class = "sidebar-info",
         p(class = "small",
           "This interactive app simulates community restoration scenarios. ",
-          "Use the selector to explore different strategies and click ",
+          "Use the drop-down menu to explore different strategies and click ",
           em("Select another community"),
           " to sample a new simulated community.")
     ),
