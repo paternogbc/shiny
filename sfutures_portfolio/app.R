@@ -1,4 +1,5 @@
 # Packages-----
+options(repos = c(CRAN = "https://packagemanager.posit.co/cran/latest"))
 library(shiny)
 library(shinydashboard)
 library(ggplot2)
@@ -122,15 +123,15 @@ removed_species <- remove_species_by_traits(tree = comp$phy,
                                             percentage_remove = 100 * (1 - deg_prob))
 lost_sp <- removed_species$removed_species
 all_sp <- comp$phy$tip.label
-deg_sp <- setdiff(all_sp, lost_sp)
+deg_sp <- base::setdiff(all_sp, lost_sp)
 
 # Plot general pattern to avoid compouting again
 # p1------
-pp1 <- ggplot() +
-  geom_point(data = dd, aes(x = zpd, y = zfd), alpha = .5, color = "gray") 
+# pp1 <- ggplot() +
+#   geom_point(data = dd, aes(x = zpd, y = zfd), alpha = .5, color = "gray") 
 
-about_content <- if (file.exists("README.md")) {
-  includeMarkdown("README.md")}
+# Process about page from README.
+about_content <-  includeMarkdown("README.md")
 
   # UI ----------------------------------------------------------------------
 ui <- dashboardPage(
@@ -189,7 +190,7 @@ ui <- dashboardPage(
         fluidRow(
           column(
             width = 6,
-            box(
+            shinydashboard::box(
               title = "Portfolio of communities",
               width = 12,
               plotOutput("plot1", height = "520px"),
@@ -201,7 +202,7 @@ ui <- dashboardPage(
           ),
           column(
             width = 6,
-            box(
+            shinydashboard::box(
               title = "Phylogenetic Tree & Trait Space",
               width = 12,
               splitLayout(
@@ -229,7 +230,7 @@ ui <- dashboardPage(
             fluidRow(
               column(
                 6,
-                box(
+                shinydashboard::box(
                   title = "Phylogenetic Diversity",
                   width = 12,
                   plotOutput("plot4", height = "340px"),
@@ -240,7 +241,7 @@ ui <- dashboardPage(
               ),
               column(
                 6,
-                box(
+                shinydashboard::box(
                   title = "Functional Diversity",
                   width = 12,
                   plotOutput("plot5", height = "340px"),
@@ -275,7 +276,7 @@ ui <- dashboardPage(
           fluidRow(
             column(
               width = 10,
-              box(
+              shinydashboard::box(
                 title = "About",
                 width = 12, status = "primary", solidHeader = TRUE, class = "about-box",
                 about_content
@@ -294,11 +295,11 @@ server <- function(input, output, session) {
   metrics <- reactiveValues(fd_max = NA, fd_ref = NA, pd_max = NA, pd_ref = NA)
   
   generatePlots <- function() {
-    crop_pd   <- simucom %>% filter(pd == max_pd)
-    crop_fd   <- simucom %>% filter(fd == max_fd)
-    crop_both <- simucom %>% filter(zfd > topfd & zpd > toppd)
-    crop_tfd  <- simucom %>% filter(zfd < -1 & zpd > toppd)
-    crop_tpd  <- simucom %>% filter(zfd > topfd & zpd < -1)
+    crop_pd   <- simucom %>% dplyr::filter(pd == max_pd)
+    crop_fd   <- simucom %>% dplyr::filter(fd == max_fd)
+    crop_both <- simucom %>% dplyr::filter(zfd > topfd & zpd > toppd)
+    crop_tfd  <- simucom %>% dplyr::filter(zfd < -1 & zpd > toppd)
+    crop_tpd  <- simucom %>% dplyr::filter(zfd > topfd & zpd < -1)
     
     df <- switch(input$type,
                  rand = simucom,
@@ -313,10 +314,10 @@ server <- function(input, output, session) {
     restored_sp <- str_split(df[restored_simu, ]$composition, pattern = "-")[[1]]
     restored_list <- c(deg_sp, restored_sp)
     
-    trait_community <- traits %>% filter(tip_name %in% restored_list)
+    trait_community <- traits %>% dplyr::filter(tip_name %in% restored_list)
     
-    deg_data <- comp$data %>% filter(tip_name %in% deg_sp) %>% dplyr::select(max_height.y, wood_density.y)
-    res_data <- comp$data %>% filter(tip_name %in% restored_list) %>% dplyr::select(max_height.y, wood_density.y)
+    deg_data <- comp$data %>% dplyr::filter(tip_name %in% deg_sp) %>% dplyr::select(max_height.y, wood_density.y)
+    res_data <- comp$data %>% dplyr::filter(tip_name %in% restored_list) %>% dplyr::select(max_height.y, wood_density.y)
     
     fd_ref <- as.numeric(fd_fric(comp$data[, c("max_height.y", "wood_density.y")])[2])
     fd_deg <- as.numeric(fd_fric(deg_data)[2]) / fd_ref
@@ -352,11 +353,11 @@ server <- function(input, output, session) {
     metrics$pd_ref <- round((datlevel$pd[3]) * 100)
     
     # p1------
-    # p1 <- ggplot() +
-    #   geom_bin_2d(data = dd, aes(x = zpd, y = zfd), alpha = .5) +
-    p1 <- pp1 +
+    p1 <- ggplot() +
+      geom_bin_2d(data = dd, aes(x = zpd, y = zfd), alpha = .5) +
+    #p1 <- pp1 +
       scale_fill_gradient(low = "white", high = "black") +
-      geom_point(data = dd %>% filter(zpd >= toppd & zfd >= topfd), aes(x = zpd, y = zfd),
+      geom_point(data = dd %>% dplyr::filter(zpd >= toppd & zfd >= topfd), aes(x = zpd, y = zfd),
                  alpha = .4, size = 1, color = colmaxDIV) +
       geom_point(data = restored_data, aes(x = zpd, y = zfd), color = "green3", size = 7) +
       geom_hline(yintercept = topfd, linetype = 2) +
@@ -405,12 +406,12 @@ server <- function(input, output, session) {
                     size = 2, expand = 0, s_shape = 1) +
       geom_encircle(data = trait_community, aes(y = max_height.y, x = wood_density.y),
                     alpha = 0.2, fill = "green1", expand = 0, s_shape = 1) +
-      geom_encircle(data = trait_community %>% filter(tip_name %in% deg_sp),
+      geom_encircle(data = trait_community %>% dplyr::filter(tip_name %in% deg_sp),
                     aes(y = max_height.y, x = wood_density.y),
                     alpha = 0.3, fill = "tomato", expand = 0, s_shape = 1) +
       geom_point(data = trait_community, aes(y = max_height.y, x = wood_density.y),
                  color = "green3", size = 5) +
-      geom_point(data = trait_community %>% filter(tip_name %in% deg_sp),
+      geom_point(data = trait_community %>% dplyr::filter(tip_name %in% deg_sp),
                  aes(y = max_height.y, x = wood_density.y),
                  color = "tomato", size = 5) +
       theme_classic() +

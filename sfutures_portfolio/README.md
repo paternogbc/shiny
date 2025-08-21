@@ -44,9 +44,6 @@ library(shiny)
 library(shinydashboard)
 shiny::runGitHub("shiny", "paternogbc", subdir = "sfutures_portfolio")
 ```
-
-![](images/clipboard-2615521128.png){width="600"}
-
 ## Want to help?
 
 Fork this repo and create a pull request. Please, report bugs [here](https://github.com/paternogbc/shiny/issues).
