@@ -124,59 +124,166 @@ lost_sp <- removed_species$removed_species
 all_sp <- comp$phy$tip.label
 deg_sp <- setdiff(all_sp, lost_sp)
 
-# UI ----------------------------------------------------------------------
+# Plot general pattern to avoid compouting again
+# p1------
+pp1 <- ggplot() +
+  geom_point(data = dd, aes(x = zpd, y = zfd), alpha = .5, color = "gray") 
+
+about_content <- if (file.exists("README.md")) {
+  includeMarkdown("README.md")}
+
+  # UI ----------------------------------------------------------------------
 ui <- dashboardPage(
   dashboardHeader(title = "Community Restoration Dashboard"),
   dashboardSidebar(
-    sidebarMenu(
-      menuItem("Dashboard", tabName = "dashboard", icon = icon("dashboard")),
-      selectInput("type", "Select restoration approach:",
-                  choices = c("Random" = "rand",
-                              "Maximize PD" = "pd", 
-                              "Maximize FD" = "fd", 
-                              "Portfolio (high PD & FD)" = "both",
-                              "Trade-off [high FD | low PD]" = "tpd",
-                              "Trade-off [high PD | low FD]" = "tfd"),
-                  selected = "rand"),
-      actionButton("generate_btn", "Select another community", icon = icon("refresh")),
-      br(), br(),
-      p("This interactive app simulates community restoration scenarios")
-    )
-  ),
-  dashboardBody(
-    fluidRow(
-      valueBoxOutput("vb_fd_max", width = 3),
-      valueBoxOutput("vb_fd_ref", width = 3),
-      valueBoxOutput("vb_pd_max", width = 3),
-      valueBoxOutput("vb_pd_ref", width = 3)
+    width = 320,
+    div(class = "sidebar-info",
+        p(class = "small",
+          "This interactive app simulates community restoration scenarios. ",
+          "Use the selector to explore different strategies and click ",
+          em("Select another community"),
+          " to sample a new simulated community.")
     ),
-    fluidRow(
-      column(
-        width = 6,
-        box(title = "Portfolio of communities", plotOutput("plot1", height = "500px"), width = 12)
+    
+    sidebarMenu(
+      menuItem("Simulator", tabName = "dashboard", icon = icon("dashboard")),
+      menuItem("About", tabName = "about", icon = icon("info-circle"))
+    ),
+    
+    # controls block below About
+    div(class = "sidebar-controls",
+        tags$h4(style = "margin-top:0;", "Controls"),
+        selectInput("type", "Select restoration approach:",
+                    choices = c("Random" = "rand",
+                                "Maximize PD" = "pd",
+                                "Maximize FD" = "fd",
+                                "Portfolio (high PD & FD)" = "both",
+                                "Trade-off [high FD | low PD]" = "tpd",
+                                "Trade-off [high PD | low FD]" = "tfd"),
+                    selected = "rand"),
+        actionButton("generate_btn", "Select another community", icon = icon("refresh"))
+        # note: no width="100%" here
+    )
+  ) ,
+  dashboardBody(
+    tags$head(
+      tags$style(HTML("
+        .sidebar-info { padding: 10px 15px 0 15px; }
+        .sidebar-info p { white-space: normal; word-wrap: break-word; line-height: 1.3; }
+        .content-wrapper, .right-side { overflow-x: hidden; }
+        .box .caption { display:block; font-size: 12px; color:#555; margin-top: 6px; }
+        @media (max-width: 1400px) { .bottom-charts .col-sm-6 { width: 100%; } }
+        .about-box .box-body { font-size: 15px; line-height: 1.5; }
+      "))
+    ),
+    tabItems(
+      # --- Dashboard tab ---
+      tabItem(
+        tabName = "dashboard",
+        fluidRow(
+          valueBoxOutput("vb_fd_max", width = 3),
+          valueBoxOutput("vb_fd_ref", width = 3),
+          valueBoxOutput("vb_pd_max", width = 3),
+          valueBoxOutput("vb_pd_ref", width = 3)
+        ),
+        fluidRow(
+          column(
+            width = 6,
+            box(
+              title = "Portfolio of communities",
+              width = 12,
+              plotOutput("plot1", height = "520px"),
+              tags$small(class = "caption",
+                         "Green point = simulated restored community. Heatmap shows density of simulations in standardized PD–FD space. ",
+                         "Dashed lines mark the 95th percentile thresholds; arrow indicates the distance to the selected community from 95th percentile of FD and PD."
+              )
+            )
+          ),
+          column(
+            width = 6,
+            box(
+              title = "Phylogenetic Tree & Trait Space",
+              width = 12,
+              splitLayout(
+                cellWidths = c("50%", "50%"),
+                plotOutput("plot2", height = "520px"),
+                plotOutput("plot3", height = "520px")
+              ),
+              tags$small(class = "caption",
+                         strong("Left:"),
+                         " Circular phylogeny with ",
+                         span(style = "color:tomato;font-weight:600;", "red"),
+                         " = species present in the degraded ecosystem and ",
+                         span(style = "color:green;font-weight:600;", "green"),
+                         " = species added to the restored community.",
+                         strong("Right:"),
+                         " Trait space (wood density × max height); green points/hull = restored community, red = degraded ecosystem. "
+              )
+            )
+          )
+        ),
+        fluidRow(
+          class = "bottom-charts",
+          column(
+            width = 6,
+            fluidRow(
+              column(
+                6,
+                box(
+                  title = "Phylogenetic Diversity",
+                  width = 12,
+                  plotOutput("plot4", height = "340px"),
+                  tags$small(class = "caption",
+                             "Bars show PD as proportion of reference (100%). Dashed lines at 25%, 50%, 75%."
+                  )
+                )
+              ),
+              column(
+                6,
+                box(
+                  title = "Functional Diversity",
+                  width = 12,
+                  plotOutput("plot5", height = "340px"),
+                  tags$small(class = "caption",
+                             "Bars show FD as proportion of reference (100%). Dashed lines at 25%, 50%, 75%."
+                  )
+                )
+              )
+            )
+          # ),
+          # column(width = 6,
+          #        box(
+          #          title = "Controls",
+          #          width = 12, status = "primary", solidHeader = TRUE,
+          #          selectInput("type", "Select restoration approach:",
+          #                      choices = c("Random" = "rand",
+          #                                  "Maximize PD" = "pd", 
+          #                                  "Maximize FD" = "fd", 
+          #                                  "Portfolio (high PD & FD)" = "both",
+          #                                  "Trade-off [high FD | low PD]" = "tpd",
+          #                                  "Trade-off [high PD | low FD]" = "tfd"),
+          #                      selected = "rand"),
+          #          actionButton("generate_btn", "Select another community", icon = icon("refresh"))
+          #        )
+          )
+        )
       ),
-      column(
-        width = 6,
-        box(
-          title = "Phylogenetic Tree & Trait Space",
-          width = 12,
-          splitLayout(
-            cellWidths = c("50%", "50%"),
-            plotOutput("plot2", height = "500px"),
-            plotOutput("plot3", height = "500px")
+      # --- About tab ---
+      tabItem(
+        tabName = "about",
+        fluidPage(
+          fluidRow(
+            column(
+              width = 10,
+              box(
+                title = "About",
+                width = 12, status = "primary", solidHeader = TRUE, class = "about-box",
+                about_content
+              )
+            )
           )
         )
       )
-    ),
-    fluidRow(
-      column(
-        width = 6,
-        fluidRow(
-          column(6, box(title = "Phylogenetic Diversity", plotOutput("plot4"), width = 12)),
-          column(6, box(title = "Functional Diversity", plotOutput("plot5"), width = 12))
-        )
-      ),
-      column(width = 6)
     )
   )
 )
@@ -236,28 +343,24 @@ server <- function(input, output, session) {
       type = c("reference", "degraded", "restored")
     )
     
-    fd_perc <- round(fd_res, 2) * 100
-    pd_perc <- round(pd_res, 2) * 100
-    pd_gap  <- pd_perc - 100
-    fd_gap  <- fd_perc - 100
-    
-    pd_max <- round((restored_data$pd / max_pd) * 100)
+    pd_max <- round((restored_data$fd / max_fd) * 100) # (kept as in your workflow if intended)
     fd_max <- round((restored_data$fd / max_fd) * 100)
     
     metrics$fd_max <- fd_max
-    metrics$fd_ref <- round(fd_res * 100)
-    metrics$pd_max <- pd_max
-    metrics$pd_ref <- round(pd_res * 100)
+    metrics$fd_ref <- round((datlevel$fd[3]) * 100)
+    metrics$pd_max <- round((restored_data$pd / max_pd) * 100)
+    metrics$pd_ref <- round((datlevel$pd[3]) * 100)
     
     # p1------
-    p1 <- ggplot() +
-      geom_bin_2d(data = dd, aes(x = zpd, y = zfd), alpha = .5) +
+    # p1 <- ggplot() +
+    #   geom_bin_2d(data = dd, aes(x = zpd, y = zfd), alpha = .5) +
+    p1 <- pp1 +
       scale_fill_gradient(low = "white", high = "black") +
       geom_point(data = dd %>% filter(zpd >= toppd & zfd >= topfd), aes(x = zpd, y = zfd),
                  alpha = .4, size = 1, color = colmaxDIV) +
-      geom_point(data = restored_data, aes(x = zpd, y = zfd), color = "green1", size = 7) +
-      geom_hline(yintercept = topfd) +
-      geom_vline(xintercept = toppd) +
+      geom_point(data = restored_data, aes(x = zpd, y = zfd), color = "green3", size = 7) +
+      geom_hline(yintercept = topfd, linetype = 2) +
+      geom_vline(xintercept = toppd, linetype = 2) +
       annotate("segment",
                x = toppd, y = topfd,
                xend = restored_data$zpd, yend = restored_data$zfd,
@@ -269,11 +372,11 @@ server <- function(input, output, session) {
       labs(y = "Standardized Functional diversity", 
            x = "Standardized Phylogenetic diversity",
            fill = "") +
-      annotate("text", x = 3, y = 3, label = "Portfolio\nHigh PD&FD", hjust = Inf, vjust = Inf,
+      annotate("text", x = 3.5, y = 3.5, label = "Portfolio\nHigh PD&FD", hjust = 1, vjust = 1,
                size = 6, color = colmaxDIV, fontface = "bold") +
-      annotate("text", x = 3, y = -3, label = "Top 5%\nPD", hjust = Inf, vjust = 0,
+      annotate("text", x = 3, y = -3, label = "Top 5%\nPD", hjust = 1, vjust = 0,
                size = 6, color = colmaxPD, fontface = "bold") +
-      annotate("text", x = -3, y = 3, label = "Top 5%\nFD", hjust = 0.5, vjust = Inf,
+      annotate("text", x = -3, y = 3, label = "Top 5%\nFD", hjust = 0.5, vjust = 1,
                size = 6, color = colmaxFD, fontface = "bold") +
       annotate("text", x = -3.5, y = -3.5, label = "Low\nPD & FD", hjust = 0.5, vjust = 0,
                size = 6, color = "black", fontface = "bold") +
@@ -281,10 +384,10 @@ server <- function(input, output, session) {
                    "PD = {metrics$pd_ref}% vs. reference | {metrics$pd_max}% vs. max")) +
       theme(
         axis.title = element_text(size = 20),
-        axis.text = element_text(size = 16)
+        axis.text = element_text(size = 16),
+        plot.margin = margin(15, 20, 20, 20)
       )
     
-    # p2-----
     p2 <- function() {
       plot_phylogeny_grouped(tree = trees,
                              degraded_species = deg_sp,
@@ -311,41 +414,48 @@ server <- function(input, output, session) {
                  aes(y = max_height.y, x = wood_density.y),
                  color = "tomato", size = 5) +
       theme_classic() +
-      labs(y = "Maximum height (m)", x = "Wood density (g/cm3)") +
+      labs(y = "Maximum height (m)", x = "Wood density (g/cm³)") +
       theme(
         axis.title = element_text(size = 20),
-        axis.text = element_text(size = 16)
+        axis.text = element_text(size = 16),
+        plot.margin = margin(15, 20, 20, 20)
       )
     
-    # p4 ----------------------------------------------------------
     p4 <- ggplot(datlevel, aes(y = pd, x = type, fill = type)) +
-      geom_col(alpha = 0.7, show.legend = FALSE) +
+      geom_col(alpha = 0.8, show.legend = FALSE) +
       geom_text(aes(label = paste0(round(pd * 100), "%")), 
-                vjust = -0.5, size = 5) +
-      scale_fill_manual(values = c("tomato", "darkgreen", "green1")) +
+                vjust = -0.6, size = 5) +
+      scale_fill_manual(values = c("reference" = "grey70", "degraded" = "tomato", "restored" = "green3")) +
       scale_x_discrete(limits = c("reference", "degraded", "restored")) +
-      geom_hline(yintercept = c(.75, .25, .5), lty = 2) +
+      geom_hline(yintercept = c(.25, .5, .75), linetype = 2) +
+      coord_cartesian(ylim = c(0, 1.05), clip = "off") +
       theme_classic() +
-      labs(y = "Phylogenetic diversity", x = "") +
+      labs(y = "PD (vs. reference)", x = "") +
       theme(
-        axis.title = element_text(size = 20),
-        axis.text = element_text(size = 16)
+        axis.title = element_text(size = 16),
+        axis.text = element_text(size = 14),
+        plot.margin = margin(20, 20, 30, 20)
       )
     
-    # p5 ----------------------------------------------------------
     p5 <- ggplot(datlevel, aes(y = fd, x = type, fill = type)) +
-      geom_col(alpha = 0.7, show.legend = FALSE) +
+      geom_col(alpha = 0.8, show.legend = FALSE) +
       geom_text(aes(label = paste0(round(fd * 100), "%")), 
-                vjust = -0.5, size = 5) +
-      scale_fill_manual(values = c("tomato", "darkgreen", "green1")) +
+                vjust = -0.6, size = 5) +
+      scale_fill_manual(values = c("reference" = "grey70", "degraded" = "tomato", "restored" = "green3")) +
       scale_x_discrete(limits = c("reference", "degraded", "restored")) +
-      geom_hline(yintercept = c(.75, .25, .5), lty = 2) +
+      geom_hline(yintercept = c(.25, .5, .75), linetype = 2) +
+      coord_cartesian(ylim = c(0, 1.05), clip = "off") +
       theme_classic() +
-      labs(y = "Functional diversity", x = "") +
+      labs(y = "FD (vs. reference)", x = "") +
       theme(
-        axis.title = element_text(size = 20),
-        axis.text = element_text(size = 16)
+        axis.title = element_text(size = 16),
+        axis.text = element_text(size = 14),
+        plot.margin = margin(20, 20, 30, 20)
       )
+    
+
+# Plot general relationship between PD, TD, FD ----------------------------
+
     
     list(p1 = p1, p2 = p2, p3 = p3, p4 = p4, p5 = p5)
   }
@@ -375,7 +485,6 @@ server <- function(input, output, session) {
   output$plot4 <- renderPlot({ plots$p4 })
   output$plot5 <- renderPlot({ plots$p5 })
   
-  # Floating value boxes ---------------------------------------------------
   output$vb_fd_max <- renderValueBox({
     valueBox(paste0(metrics$fd_max, "%"), "FD vs. max potential", icon = icon("chart-line"), color = "light-blue")
   })
