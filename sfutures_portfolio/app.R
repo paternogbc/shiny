@@ -10,6 +10,7 @@ library(stringr)
 library(glue)
 library(fundiversity)
 library(picante)
+library(markdown)
 library(ggalt)     # for geom_encircle
 library(ape)       # read.tree / drop.tip, base phylogeny plotting
 
