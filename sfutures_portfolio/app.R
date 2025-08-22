@@ -86,6 +86,52 @@ plot_phylogeny_grouped <- function(tree,
   tiplabels(pch = 19, col = tip_colors, cex = size_tip)
 }
 
+plot_phylogeny_grouped <- function(tree,
+                                   degraded_species,
+                                   added_species,
+                                   col_degraded = "red",
+                                   col_added = "green",
+                                   col_background = gray(0.85),
+                                   layout = "circular",
+                                   size_tip = 1) {
+  edge_colors <- rep("grey50", nrow(tree$edge))
+  
+  get_path_edges <- function(tree, tip) {
+    tip_idx <- which(tree$tip.label == tip)
+    node <- tip_idx
+    edges <- integer()
+    while (node != (Ntip(tree) + 1)) {
+      parent_edge <- which(tree$edge[, 2] == node)
+      if (length(parent_edge) == 0) break
+      edges <- c(edges, parent_edge)
+      node <- tree$edge[parent_edge, 1]
+    }
+    edges
+  }
+  
+  for (sp in degraded_species) {
+    edge_colors[get_path_edges(tree, sp)] <- col_degraded
+  }
+  for (sp in added_species) {
+    edge_colors[get_path_edges(tree, sp)] <- col_added
+  }
+  
+  type <- if (layout == "circular") "fan" else "phylogram"
+  
+  # remove margins
+  op <- par(no.readonly = TRUE)
+  on.exit(par(op))  # restore previous settings after function exits
+  par(mar = c(0, 0, 0, 0))
+  
+  plot.phylo(tree, type = type, show.tip.label = FALSE, edge.color = edge_colors)
+  
+  tip_colors <- rep(col_background, length(tree$tip.label))
+  tip_colors[tree$tip.label %in% degraded_species] <- col_degraded
+  tip_colors[tree$tip.label %in% added_species]    <- col_added
+  
+  tiplabels(pch = 19, col = tip_colors, cex = size_tip)
+}
+
 # Load data ---------------------------------------------------------------
 trees   <- read.tree("phylogenetic_tree_allsp2020_S3.tre")
 simucom <- read.csv("simulated_communities_N100000.csv")
@@ -215,11 +261,13 @@ ui <- dashboardPage(
                          strong("Left:"),
                          " Circular phylogeny with ",
                          span(style = "color:tomato;font-weight:600;", "red"),
-                         " = species present in the degraded ecosystem and ",
+                         " = species present in the degraded ecosystem, ",
                          span(style = "color:green;font-weight:600;", "green"),
-                         " = species added to the restored community.",
-                         strong("Right:"),
-                         " Trait space (wood density × max height); green points/hull = restored community, red = degraded ecosystem. "
+                         " = species added to the restored community, and ",
+                         span(style = "color:gray;font-weight:600;", "gray"),
+                         " = all species from the reference community.",
+                         strong(" Right:"),
+                         " Trait space (wood density × max height); green points/hull = restored community, red = degraded ecosystem, black points = reference community, black line = trait space (FD) of the reference community"
               )
             )
           )
@@ -396,17 +444,18 @@ server <- function(input, output, session) {
                              added_species = restored_sp,
                              col_degraded = "tomato",
                              col_added = "green3",
-                             col_background = gray(0.85),
+                             col_background = gray(0.9),
                              layout = "circular",
-                             size_tip = 1)
+                             size_tip = 2)
     }
     
     p3 <- ggplot() +
-      geom_point(data = comp$data, aes(y = max_height.y, x = wood_density.y)) +
+      geom_point(data = comp$data, aes(y = max_height.y, x = wood_density.y),
+                 color = gray(.3), size = 2) +
       geom_encircle(data = comp$data, aes(y = max_height.y, x = wood_density.y),
-                    size = 2, expand = 0, s_shape = 1) +
+                    size = 2, expand = 0, s_shape = 1, color = gray(.3)) +
       geom_encircle(data = trait_community, aes(y = max_height.y, x = wood_density.y),
-                    alpha = 0.2, fill = "green1", expand = 0, s_shape = 1) +
+                    alpha = 0.1, fill = "green1", expand = 0, s_shape = 1) +
       geom_encircle(data = trait_community %>% dplyr::filter(tip_name %in% deg_sp),
                     aes(y = max_height.y, x = wood_density.y),
                     alpha = 0.3, fill = "tomato", expand = 0, s_shape = 1) +
@@ -415,6 +464,16 @@ server <- function(input, output, session) {
       geom_point(data = trait_community %>% dplyr::filter(tip_name %in% deg_sp),
                  aes(y = max_height.y, x = wood_density.y),
                  color = "tomato", size = 5) +
+      # stacked labels in top-right
+      annotate("text", x = max(comp$data$wood_density.y, na.rm = TRUE), 
+               y = max(comp$data$max_height.y, na.rm = TRUE), 
+               label = "Reference", hjust = 1, size = 6, color = "black") +
+      annotate("text", x = max(comp$data$wood_density.y, na.rm = TRUE), 
+               y = max(comp$data$max_height.y, na.rm = TRUE) - 2, 
+               label = "Restored", hjust = 1, size = 6, color = "green4") +
+      annotate("text", x = max(comp$data$wood_density.y, na.rm = TRUE), 
+               y = max(comp$data$max_height.y, na.rm = TRUE) - 4, 
+               label = "Degraded", hjust = 1, size = 6, color = "tomato3") +
       theme_classic() +
       labs(y = "Maximum height (m)", x = "Wood density (g/cm³)") +
       theme(
@@ -422,6 +481,8 @@ server <- function(input, output, session) {
         axis.text = element_text(size = 16),
         plot.margin = margin(15, 20, 20, 20)
       )
+    p3
+    
     
     p4 <- ggplot(datlevel, aes(y = pd, x = type, fill = type)) +
       geom_col(alpha = 0.8, show.legend = FALSE) +
